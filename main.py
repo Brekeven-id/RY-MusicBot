@@ -1,3 +1,4 @@
+import asyncio
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from pytgcalls import PyTgCalls
@@ -5,9 +6,10 @@ from pytgcalls.types.input_stream import AudioPiped
 from yt_dlp import YoutubeDL
 
 from config import *
+import queue
 
 app = Client(
-    "rymusicbot",
+    "RYMusicBot",
     api_id=API_ID,
     api_hash=API_HASH,
     bot_token=BOT_TOKEN
@@ -15,33 +17,44 @@ app = Client(
 
 call = PyTgCalls(app)
 
-queues = {}
-
-
 @app.on_message(filters.command("start"))
-async def start(_, message):
+async def start(client, message):
+
+    msg = await message.reply("⚡ Booting RY System...\n[□□□□□□□□] 0%")
+
+    await asyncio.sleep(1)
+    await msg.edit("⚡ Loading Music Engine...\n[■■□□□□□□] 20%")
+
+    await asyncio.sleep(1)
+    await msg.edit("⚡ Connecting Voice Server...\n[■■■■□□□□] 40%")
+
+    await asyncio.sleep(1)
+    await msg.edit("⚡ Checking Modules...\n[■■■■■■□□] 60%")
+
+    await asyncio.sleep(1)
+    await msg.edit("⚡ Starting Music Bot...\n[■■■■■■■■] 100%")
+
+    await asyncio.sleep(1)
 
     buttons = InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("🎧 Play", callback_data="play"),
-                InlineKeyboardButton("📜 Queue", callback_data="queue")
-            ],
-            [
-                InlineKeyboardButton("⏸ Pause", callback_data="pause"),
-                InlineKeyboardButton("▶ Resume", callback_data="resume")
-            ],
-            [
-                InlineKeyboardButton("⏭ Skip", callback_data="skip")
+                InlineKeyboardButton("🎧 Play Music", callback_data="play"),
+                InlineKeyboardButton("📜 Commands", callback_data="help")
             ]
         ]
     )
 
-    await message.reply_text(
-"""
+    await msg.delete()
+
+    await message.reply_photo(
+        photo="logo.png",
+        caption="""
 🎧 **亗RY_Store Music Bot**
 
-Commands:
+Play music in voice chat
+
+Commands
 
 /play nama lagu
 /pause
@@ -61,7 +74,7 @@ async def play(_, message):
     if not query:
         return await message.reply("Masukkan judul lagu")
 
-    await message.reply("🔎 mencari lagu...")
+    await message.reply("🔎 Searching...")
 
     ydl_opts = {"format": "bestaudio"}
 
@@ -71,26 +84,30 @@ async def play(_, message):
     url = info["url"]
     title = info["title"]
 
+    queue.add(message.chat.id, title)
+
     await call.join_group_call(
         message.chat.id,
         AudioPiped(url)
     )
 
-    queues.setdefault(message.chat.id, []).append(title)
-
-    await message.reply(f"▶ Memutar: {title}")
+    await message.reply(f"▶ Playing {title}")
 
 
 @app.on_message(filters.command("pause"))
 async def pause(_, message):
+
     await call.pause_stream(message.chat.id)
-    await message.reply("⏸ Musik dijeda")
+
+    await message.reply("⏸ Music Paused")
 
 
 @app.on_message(filters.command("resume"))
 async def resume(_, message):
+
     await call.resume_stream(message.chat.id)
-    await message.reply("▶ Musik dilanjutkan")
+
+    await message.reply("▶ Music Resumed")
 
 
 @app.on_message(filters.command("skip"))
@@ -98,21 +115,20 @@ async def skip(_, message):
 
     await call.leave_group_call(message.chat.id)
 
-    if message.chat.id in queues:
-        queues[message.chat.id] = []
+    queue.clear(message.chat.id)
 
-    await message.reply("⏭ Lagu dilewati")
+    await message.reply("⏭ Song Skipped")
 
 
 @app.on_message(filters.command("queue"))
-async def queue(_, message):
+async def q(_, message):
 
-    q = queues.get(message.chat.id)
+    songs = queue.get(message.chat.id)
 
-    if not q:
+    if not songs:
         return await message.reply("Queue kosong")
 
-    text = "\n".join(q)
+    text = "\n".join(songs)
 
     await message.reply(f"📜 Queue:\n{text}")
 
