@@ -1,10 +1,4 @@
-#!/bin/bash
-
-echo "Installing RY Music Bot..."
-
-apt update -y
-apt install python3 python3-pip git ffmpeg -y
+apt update
+apt install python3 python3-pip ffmpeg git -y
 
 pip3 install -r requirements.txt
-
-echo "Install selesai"
