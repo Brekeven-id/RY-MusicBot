@@ -1,4 +1,6 @@
-API_ID = 30733240
-API_HASH = "ba641b8ba610b0ea4e280403eee035c8"
-BOT_TOKEN = "8615729260:AAEDfPQOWTrqW6HqkK5JQOIZtWCrVYMVsdk"
-OWNER_ID = 7737615658
+import os
+
+API_ID = os.getenv("API_ID")
+API_HASH = os.getenv("API_HASH")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+OWNER_ID = int(os.getenv("OWNER_ID"))
