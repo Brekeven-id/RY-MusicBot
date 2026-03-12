@@ -1,6 +1,4 @@
-import os
-
-API_ID = os.getenv("API_ID")
-API_HASH = os.getenv("API_HASH")
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-OWNER_ID = int(os.getenv("OWNER_ID"))
+API_ID = 30733240
+API_HASH = "ISI_API_HASH_KAMU"
+BOT_TOKEN = "ISI_BOT_TOKEN_KAMU"
+OWNER_ID = 7737615658
