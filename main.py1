@@ -1,0 +1,128 @@
+import config
+import yt_dlp
+from pyrogram import Client, filters
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from pytgcalls import PyTgCalls
+from pytgcalls.types.input_stream import AudioPiped
+import queue
+
+bot = Client(
+    "RYMusicBot",
+    api_id=config.API_ID,
+    api_hash=config.API_HASH,
+    bot_token=config.BOT_TOKEN
+)
+
+call = PyTgCalls(bot)
+
+@bot.on_message(filters.command("start"))
+async def start(_, message):
+
+    buttons = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("⏸ Pause", callback_data="pause"),
+            InlineKeyboardButton("▶ Resume", callback_data="resume")
+        ],
+        [
+            InlineKeyboardButton("⏭ Skip", callback_data="skip"),
+            InlineKeyboardButton("📜 Queue", callback_data="queue")
+        ]
+    ])
+
+    await message.reply_photo(
+        photo="logo.png",
+        caption="""
+🎧 亗RY_Store Music Bot
+
+Commands
+/play nama lagu
+/stop
+""",
+        reply_markup=buttons
+    )
+
+
+@bot.on_message(filters.command("play"))
+async def play(_, message):
+
+    if len(message.command) < 2:
+        return await message.reply("Kirim /play judul lagu")
+
+    query = " ".join(message.command[1:])
+    chat_id = message.chat.id
+
+    await message.reply("🔎 Mencari lagu...")
+
+    ydl_opts = {"format": "bestaudio"}
+
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(f"ytsearch:{query}", download=False)["entries"][0]
+
+    url = info["url"]
+    title = info["title"]
+
+    queue.add(chat_id, url)
+
+    if len(queue.get(chat_id)) == 1:
+        await call.join_group_call(chat_id, AudioPiped(url))
+
+    await message.reply(f"▶ {title} ditambahkan ke queue")
+
+
+@bot.on_callback_query()
+async def controls(_, cb):
+
+    chat_id = cb.message.chat.id
+
+    if cb.data == "pause":
+        await call.pause_stream(chat_id)
+        await cb.answer("Music Pause")
+
+    elif cb.data == "resume":
+        await call.resume_stream(chat_id)
+        await cb.answer("Music Resume")
+
+    elif cb.data == "skip":
+
+        next_song = queue.skip(chat_id)
+
+        if next_song:
+            await call.change_stream(chat_id, AudioPiped(next_song))
+            await cb.answer("Skip Lagu")
+
+        else:
+            await call.leave_group_call(chat_id)
+            await cb.answer("Queue habis")
+
+    elif cb.data == "queue":
+
+        songs = queue.get(chat_id)
+
+        if not songs:
+            return await cb.answer("Queue kosong")
+
+        text = "Queue Lagu\n\n"
+
+        for i, s in enumerate(songs[:200]):
+            text += f"{i+1}. {s}\n"
+
+        await cb.message.reply(text)
+
+
+@bot.on_message(filters.command("stop"))
+async def stop(_, message):
+
+    chat_id = message.chat.id
+
+    await call.leave_group_call(chat_id)
+
+    queue.clear(chat_id)
+
+    await message.reply("Music Stop")
+
+
+bot.start()
+call.start()
+
+print("RY Music Bot Running...")
+bot.idle()
